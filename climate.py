@@ -61,7 +61,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Generic Fan Coil Thermostat climate platform."""
     data = hass.data[DOMAIN][config_entry.entry_id]
-    
+
     async_add_entities(
         [
             GenericFanCoilThermostat(
@@ -89,7 +89,10 @@ class GenericFanCoilThermostat(ClimateEntity, RestoreEntity):
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL]
     _attr_supported_features = (
-        ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE
+        ClimateEntityFeature.TARGET_TEMPERATURE
+        | ClimateEntityFeature.FAN_MODE
+        | ClimateEntityFeature.TURN_ON
+        | ClimateEntityFeature.TURN_OFF
     )
     _enable_turn_on_off_backwards_compatibility = False
     _attr_fan_modes = ["off", "low", "medium", "high", "auto"]
@@ -114,7 +117,7 @@ class GenericFanCoilThermostat(ClimateEntity, RestoreEntity):
         self._fan_entity_id = fan_entity_id
         self._cooling_switches = cooling_switches or []
         self._heating_switches = heating_switches or []
-        
+
         # Determine available HVAC modes based on configured switches
         hvac_modes = [HVACMode.OFF]
         if self._cooling_switches:
@@ -125,11 +128,11 @@ class GenericFanCoilThermostat(ClimateEntity, RestoreEntity):
         if not self._cooling_switches and not self._heating_switches:
             hvac_modes.extend([HVACMode.HEAT, HVACMode.COOL])
         self._attr_hvac_modes = hvac_modes
-        
+
         _LOGGER.debug(f"Initializing thermostat with cooling switches: {self._cooling_switches}")
         _LOGGER.debug(f"Initializing thermostat with heating switches: {self._heating_switches}")
         _LOGGER.debug(f"Available HVAC modes: {hvac_modes}")
-        
+
         self._attr_min_temp = min_temp
         self._attr_max_temp = max_temp
         self._attr_target_temperature = target_temp
@@ -219,25 +222,25 @@ class GenericFanCoilThermostat(ClimateEntity, RestoreEntity):
         """Set the fan mode."""
         if fan_mode not in self.fan_modes:
             raise ValueError(f"Invalid fan mode: {fan_mode}")
-        
+
         self._attr_fan_mode = fan_mode
-        
+
         # If we're in automatic mode, let the control logic handle it
         if fan_mode == "auto":
             self.async_control_fan()
         else:
             # Otherwise directly set the fan mode
             await self.async_update_fan(fan_mode)
-            
+
         self.async_write_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set the HVAC mode."""
         if hvac_mode not in self.hvac_modes:
             raise ValueError(f"Invalid hvac mode: {hvac_mode}")
-            
+
         self._attr_hvac_mode = hvac_mode
-        
+
         if hvac_mode == HVACMode.OFF:
             # Turn off all switches but only turn off fan if it's in auto mode
             await self.async_turn_off_cooling_switches()
@@ -250,7 +253,7 @@ class GenericFanCoilThermostat(ClimateEntity, RestoreEntity):
         else:
             # Run control logic
             self.async_control_fan()
-        
+
         self.async_write_ha_state()
 
     def async_control_fan(self):
@@ -258,7 +261,7 @@ class GenericFanCoilThermostat(ClimateEntity, RestoreEntity):
         if self._attr_hvac_mode == HVACMode.OFF:
             _LOGGER.debug("HVAC mode is OFF, skipping fan control")
             return
-            
+
         if self._attr_current_temperature is None or self._attr_target_temperature is None:
             _LOGGER.debug("Temperature values not available, skipping fan control")
             return
@@ -308,7 +311,7 @@ class GenericFanCoilThermostat(ClimateEntity, RestoreEntity):
         """Control heating based on temperature difference."""
         # For heating, we need negative temperature difference (current < target)
         heating_diff = -temp_diff  # Convert to positive value for heating need
-        
+
         if heating_diff < THRESHOLD_LOW:
             # Temperature above threshold, turn off heating switches and fan (if auto)
             _LOGGER.debug(f"Heating difference {heating_diff}°C < {THRESHOLD_LOW}°C, turning off heating")
@@ -349,10 +352,10 @@ class GenericFanCoilThermostat(ClimateEntity, RestoreEntity):
             await self.hass.services.async_call(
                 "fan", "turn_on", {"entity_id": self._fan_entity_id}
             )
-            
+
             await self.hass.services.async_call(
-                "fan", 
-                "set_preset_mode", 
+                "fan",
+                "set_preset_mode",
                 {
                     "entity_id": self._fan_entity_id,
                     "preset_mode": mode
@@ -364,14 +367,14 @@ class GenericFanCoilThermostat(ClimateEntity, RestoreEntity):
         if not self._cooling_switches:
             _LOGGER.debug("No cooling switches configured")
             return
-            
+
         _LOGGER.debug(f"Turning ON cooling switches: {self._cooling_switches}")
-        
+
         # Turn on all switches in a single service call if possible
         try:
             await self.hass.services.async_call(
-                "switch", 
-                "turn_on", 
+                "switch",
+                "turn_on",
                 {"entity_id": self._cooling_switches}
             )
             _LOGGER.debug("Successfully turned ON all cooling switches")
@@ -392,14 +395,14 @@ class GenericFanCoilThermostat(ClimateEntity, RestoreEntity):
         if not self._cooling_switches:
             _LOGGER.debug("No cooling switches configured")
             return
-            
+
         _LOGGER.debug(f"Turning OFF cooling switches: {self._cooling_switches}")
-        
+
         # Turn off all switches in a single service call if possible
         try:
             await self.hass.services.async_call(
-                "switch", 
-                "turn_off", 
+                "switch",
+                "turn_off",
                 {"entity_id": self._cooling_switches}
             )
             _LOGGER.debug("Successfully turned OFF all cooling switches")
@@ -420,14 +423,14 @@ class GenericFanCoilThermostat(ClimateEntity, RestoreEntity):
         if not self._heating_switches:
             _LOGGER.debug("No heating switches configured")
             return
-            
+
         _LOGGER.debug(f"Turning ON heating switches: {self._heating_switches}")
-        
+
         # Turn on all switches in a single service call if possible
         try:
             await self.hass.services.async_call(
-                "switch", 
-                "turn_on", 
+                "switch",
+                "turn_on",
                 {"entity_id": self._heating_switches}
             )
             _LOGGER.debug("Successfully turned ON all heating switches")
@@ -448,14 +451,14 @@ class GenericFanCoilThermostat(ClimateEntity, RestoreEntity):
         if not self._heating_switches:
             _LOGGER.debug("No heating switches configured")
             return
-            
+
         _LOGGER.debug(f"Turning OFF heating switches: {self._heating_switches}")
-        
+
         # Turn off all switches in a single service call if possible
         try:
             await self.hass.services.async_call(
-                "switch", 
-                "turn_off", 
+                "switch",
+                "turn_off",
                 {"entity_id": self._heating_switches}
             )
             _LOGGER.debug("Successfully turned OFF all heating switches")
@@ -470,3 +473,15 @@ class GenericFanCoilThermostat(ClimateEntity, RestoreEntity):
                     )
                 except Exception as switch_ex:
                     _LOGGER.error(f"Error turning off heating switch {switch_entity}: {switch_ex}")
+
+    async def async_turn_off(self, **kwargs):
+        await self.async_set_hvac_mode(HVACMode.OFF)
+
+    async def async_turn_on(self, **kwargs):
+        # choose a default when turning on
+        default = (
+            HVACMode.COOL
+            if HVACMode.COOL in self.hvac_modes
+            else HVACMode.HEAT
+        )
+        await self.async_set_hvac_mode(default)
