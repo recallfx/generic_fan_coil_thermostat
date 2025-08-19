@@ -348,17 +348,26 @@ class GenericFanCoilThermostat(ClimateEntity, RestoreEntity):
                 "fan", "turn_off", {"entity_id": self._fan_entity_id}
             )
         else:
-            # Turn on fan and set its mode
+            # Turn on fan and set its speed using percentage
             await self.hass.services.async_call(
                 "fan", "turn_on", {"entity_id": self._fan_entity_id}
             )
 
+            # Map fan modes to percentage values for KNX fan with max_step: 3
+            percentage_map = {
+                FAN_LOW: 33,      # Step 1 of 3 = ~33%
+                FAN_MED: 66,      # Step 2 of 3 = ~66%
+                FAN_HIGH: 100     # Step 3 of 3 = 100%
+            }
+            
+            percentage = percentage_map.get(mode, 33)  # Default to low speed
+            
             await self.hass.services.async_call(
                 "fan",
-                "set_preset_mode",
+                "set_percentage",
                 {
                     "entity_id": self._fan_entity_id,
-                    "preset_mode": mode
+                    "percentage": percentage
                 }
             )
 
