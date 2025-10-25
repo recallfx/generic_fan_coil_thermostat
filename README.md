@@ -1,78 +1,91 @@
-# Generic Fan Coil Thermostat Component
+# Generic Fan Coil Thermostat
 
-This custom component creates a climate entity that behaves like a thermostat for controlling both heating and cooling with fan speed control. It automatically adjusts the fan speed based on the temperature difference between the current room temperature and the target temperature.
+A Home Assistant integration that turns a fan and temperature sensor into a smart climate control system. The fan speed adjusts automatically based on how far the room temperature is from your target, and you can wire in switches to control heating or cooling equipment.
 
-## Features
+## What it does
 
-- Works as a standard Home Assistant climate entity
-- Automatically controls fan speed based on temperature difference
-- Controls additional switches when heating or cooling is needed (e.g., heat exchangers, pumps, heating elements)
-- Supports both automatic and manual fan speed control
-- Supports heating, cooling, or both modes depending on configured switches
-- Configurable through the UI
-- Works with any fan entity that supports preset modes
+This creates a standard climate entity (thermostat) that controls an existing fan entity. When the room gets too warm or too cold, it ramps the fan speed up or down to compensate. If you connect switches for heating or cooling equipment (like a boiler relay or heat exchanger), it'll turn those on when needed.
+
+The automatic fan speed control is the main feature—it looks at the temperature gap and picks low, medium, or high speed accordingly. You can also override this and lock the fan to a specific speed if you want.
 
 ## Installation
 
-1. Place the `generic_fan_coil_thermostat` folder in your `custom_components` directory
+### HACS (recommended)
+
+1. Add this repository as a custom repository in HACS
+2. Search for "Generic Fan Coil Thermostat" and install it
+3. Restart Home Assistant
+
+### Manual
+
+1. Copy the `custom_components/generic_fan_coil_thermostat` folder into your `config/custom_components` directory
 2. Restart Home Assistant
-3. Go to **Settings** > **Devices & Services** > **+ Add Integration**
-4. Search for "Generic Fan Coil Thermostat" and add it
-5. Follow the configuration wizard to set up your thermostat
 
-## Configuration
+### Setup
 
-During setup, you'll need to provide:
+1. Go to **Settings** → **Devices & Services** → **Add Integration**
+2. Search for "Generic Fan Coil Thermostat"
+3. Pick your temperature sensor and fan entity
+4. (Optional) Add switches for cooling or heating equipment
+5. (Optional) Adjust temperature limits and defaults
 
-- Temperature sensor entity to use for monitoring room temperature
-- Fan entity to control (must support preset modes: low, medium, high)
-- Optional cooling switches (e.g., heat exchanger switches, pump controls) - these will be turned on when cooling is active
-- Optional heating switches (e.g., heating elements, boiler controls) - these will be turned on when heating is active
-- Optional temperature settings (min, max, default target, step size)
+The integration only shows heating/cooling modes if you've configured the corresponding switches. Without any switches, both modes are available for fan-only operation.
 
-**Note:** The thermostat will only show heating and/or cooling modes if the corresponding switches are configured. If no switches are configured, both heating and cooling modes will be available for fan-only operation.
+## How to use it
 
-## Usage
+The thermostat shows up as a climate entity. Add it to your dashboard with a thermostat card, just like any other climate device.
 
-Once installed, the Generic Fan Coil Thermostat will appear as a climate entity that you can add to your dashboards using any of the standard climate cards.
+**Modes:**
+- **Off** — Everything stops (fan and switches turn off)
+- **Cool** — Keeps temperature at or below target (requires cooling switches, or works fan-only)
+- **Heat** — Keeps temperature at or above target (requires heating switches, or works fan-only)
 
-- Set the target temperature like any other thermostat
-- Switch between "Off", "Heat", and "Cool" modes (available modes depend on configured switches)
-- Select fan mode: auto, off, low, medium, or high
-  - In "auto" mode, the fan speed is controlled automatically based on temperature difference
-  - In manual modes (off, low, medium, high), the fan stays at the selected speed regardless of temperature
-  - When thermostat mode is "Off", switches are turned off but fan remains in its current state if manually controlled
-- Heating and cooling switches are controlled automatically based on demand, regardless of fan mode
+**Fan control:**
+- **Auto** — Fan speed adjusts based on temperature difference (recommended)
+- **Low/Medium/High** — Fan runs at fixed speed regardless of temperature
+- **Off** — Fan stays off even if heating/cooling is active
 
-## Fan Speed Control Logic
+The switches turn on and off automatically based on whether heating or cooling is needed, independent of fan mode.
 
-### Cooling Mode
-- Temperature difference < 0.5°C: Fan OFF, Cooling switches OFF
-- Temperature difference 0.5-1.5°C: Fan LOW, Cooling switches ON
-- Temperature difference 1.5-2.5°C: Fan MEDIUM, Cooling switches ON
-- Temperature difference > 2.5°C: Fan HIGH, Cooling switches ON
+## Fan speed thresholds
 
-### Heating Mode
-- Temperature difference < -0.5°C: Fan OFF, Heating switches OFF
-- Temperature difference -0.5°C to -1.5°C: Fan LOW, Heating switches ON
-- Temperature difference -1.5°C to -2.5°C: Fan MEDIUM, Heating switches ON
-- Temperature difference < -2.5°C: Fan HIGH, Heating switches ON
+When in auto mode, the fan speed responds to how far off the temperature is:
 
-*Temperature difference = Current Temperature - Target Temperature*
+**Cooling** (room too warm):
+- Less than 0.5°C over target: fan off, cooling switches off
+- 0.5°C to 1.5°C over: fan low, cooling switches on
+- 1.5°C to 2.5°C over: fan medium, cooling switches on  
+- More than 2.5°C over: fan high, cooling switches on
 
-## Example Use Cases
+**Heating** (room too cold):
+- Less than 0.5°C under target: fan off, heating switches off
+- 0.5°C to 1.5°C under: fan low, heating switches on
+- 1.5°C to 2.5°C under: fan medium, heating switches on
+- More than 2.5°C under: fan high, heating switches on
 
-### For Cooling Switches
-- Heat exchanger controls for water cooling systems
-- Water pumps for cooling circuits
-- Valve actuators for cooling water flow
-- Additional cooling equipment like chillers
-- Any switch that needs to be active during cooling operation
+## What to connect to the switches
 
-### For Heating Switches
-- Heating elements or electric heaters
-- Boiler or heating system controls
-- Water pumps for heating circuits
-- Valve actuators for heating water flow
-- Underfloor heating controls
-- Any switch that needs to be active during heating operation
+The switch inputs are meant for relays or smart switches that control your actual heating/cooling hardware.
+
+**Cooling switches:**
+- Heat exchanger valve controls
+- Chilled water pump relays
+- Air conditioning unit toggles
+- Fan coil unit cooling valves
+
+**Heating switches:**
+- Boiler or furnace relays
+- Heating element controls
+- Hot water pump switches  
+- Heating valve actuators
+- Electric heater toggles
+
+You can connect multiple switches to each input (e.g., one for a pump and one for a valve). They all turn on and off together when that mode activates.
+
+## Requirements
+
+- A fan entity that supports percentage-based speed control
+- A temperature sensor entity (any numeric sensor reporting temperature)
+- (Optional) Switch entities for controlling heating/cooling equipment
+
+The fan needs to respond to `fan.set_percentage` service calls with values of 33% (low), 66% (medium), and 100% (high).
