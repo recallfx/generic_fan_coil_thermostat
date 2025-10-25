@@ -1,6 +1,5 @@
 {
   "config": {
-    "title": "Generic Fan Coil Thermostat",
     "step": {
       "user": {
         "title": "Set up Generic Fan Coil Thermostat",
