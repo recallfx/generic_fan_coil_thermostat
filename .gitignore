@@ -50,6 +50,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.ruff_cache
 
 # Translations
 *.mo
@@ -128,14 +129,24 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# IDE specific files
+# Home Assistant specific
+home-assistant.log*
+home-assistant_v2.db*
+.HA_VERSION
+.uuid
+.cloud/
+.storage/
+secrets.yaml
+known_devices.yaml
+
+# IDE specific
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS specific files
+# OS specific
 .DS_Store
 .DS_Store?
 ._*
@@ -144,13 +155,14 @@ dmypy.json
 ehthumbs.db
 Thumbs.db
 
-# Home Assistant specific
-*.log
-*.db
-*.db-wal
-*.db-shm
-
 # Temporary files
 *.tmp
-*.bak
-*.backup
+*.temp
+.temp/
+.tmp/
+
+# Local development
+test_output/
+debug/
+*.local
+
